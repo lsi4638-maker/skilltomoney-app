@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>스킬투머니 실습실 · 5장</title>
+
+  <!-- Pyodide CDN: 브라우저 내부에서 파이썬 코드를 실행할 수 있게 해주는 WASM 엔진 -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+
+  <style>
+    /* Reset & CSS Variables */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-deep: #091224;
+      --bg-surface: #0f1d38;
+      --bg-card: #152648;
+      --bg-card-hover: #1c3360;
+      --gold-primary: #f5c842;
+      --gold-light: #ffdf73;
+      --gold-dark: #c99818;
+      --text-white: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-sub: #cbd5e1;
+      --border-color: rgba(245, 200, 66, 0.2);
+      --border-soft: rgba(255, 255, 255, 0.1);
+      --editor-bg: #0b1325;
+      --editor-gutter: #080d1a;
+      --font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", Roboto, sans-serif;
+      --font-mono: "Fira Code", Consolas, Menlo, Monaco, "Courier New", monospace;
+    }
+
+    body {
+      background-color: var(--bg-deep);
+      color: var(--text-white);
+      font-family: var(--font-family);
+      line-height: 1.6;
+      word-break: keep-all;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Banner / Title Bar */
+    .lab-top-banner {
+      background: linear-gradient(90deg, #0e1c38 0%, #15284e 50%, #0e1c38 100%);
+      border-bottom: 1px solid rgba(245, 200, 66, 0.35);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      padding: 16px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .banner-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .banner-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .banner-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      background: rgba(245, 200, 66, 0.15);
+      border: 1px solid rgba(245, 200, 66, 0.4);
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--gold-light);
+      letter-spacing: 0.5px;
+    }
+
+    .banner-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text-white);
+    }
+
+    .gold-text {
+      color: var(--gold-primary);
+      background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold-primary) 50%, var(--gold-dark) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .banner-link {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .banner-link:hover {
+      color: var(--gold-light);
+    }
+
+    /* Main 2-Column Layout */
+    .lab-container {
+      width: 100%;
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      flex-grow: 1;
+      align-items: start;
+    }
+
+    /* Panels */
+    .panel {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-soft);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-soft);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .panel-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-refresh-list {
+      padding: 7px 14px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      border-radius: 8px;
+      background: rgba(245, 200, 66, 0.15);
+      color: var(--gold-light);
+      border: 1px solid rgba(245, 200, 66, 0.35);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-refresh-list:hover {
+      background: rgba(245, 200, 66, 0.25);
+      border-color: var(--gold-primary);
+      color: #ffffff;
+    }
+
+    .panel-tag {
+      font-size: 0.78rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* Filter Area: only_open */
+    .filter-box-area {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(9, 18, 36, 0.6);
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      padding: 12px 16px;
+      gap: 10px;
+    }
+
+    .filter-checkbox-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-white);
+      cursor: not-allowed;
+      user-select: none;
+    }
+
+    .filter-checkbox-label input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--gold-primary);
+      cursor: not-allowed;
+    }
+
+    .filter-hint-badge {
+      font-size: 0.76rem;
+      color: var(--gold-light);
+      background: rgba(245, 200, 66, 0.12);
+      border: 1px solid rgba(245, 200, 66, 0.25);
+      padding: 3px 9px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+    }
+
+    /* Left Panel: Course Cards Container */
+    .course-cards-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 240px;
+    }
+
+    .course-card-item {
+      background: linear-gradient(145deg, #12213f 0%, #0d1a33 100%);
+      border: 1.5px solid rgba(245, 200, 66, 0.25);
+      border-radius: 14px;
+      padding: 18px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .course-card-item:hover {
+      border-color: var(--gold-primary);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 15px rgba(245, 200, 66, 0.1);
+    }
+
+    .card-main-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .card-left-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .card-course-name {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-white);
+      letter-spacing: -0.3px;
+    }
+
+    .card-meta-text {
+      font-size: 0.95rem;
+      color: var(--text-sub);
+    }
+
+    .card-tags-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag-badge {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(245, 200, 66, 0.12);
+      color: var(--gold-light);
+      border: 1px solid rgba(245, 200, 66, 0.3);
+      font-weight: 600;
+    }
+
+    .badge-closed {
+      color: #94a3b8;
+      background: rgba(148, 163, 184, 0.15);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .badge-urgent {
+      color: #f87171;
+      background: rgba(248, 113, 113, 0.15);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    /* Right Column: Code Editor Box */
+    .code-editor-card {
+      background: var(--editor-bg);
+      border: 1px solid var(--border-soft);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+    }
+
+    .editor-topbar {
+      background: #080e1c;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .editor-topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .editor-window-controls {
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+    }
+
+    .dot-red {
+      background: #ef4444;
+    }
+
+    .dot-yellow {
+      background: #f59e0b;
+    }
+
+    .dot-green {
+      background: #10b981;
+    }
+
+    .editor-filename {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-reset-code {
+      background: transparent;
+      border: 1px solid var(--border-soft);
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-reset-code:hover {
+      color: var(--gold-light);
+      border-color: var(--border-color);
+      background: rgba(245, 200, 66, 0.08);
+    }
+
+    .editor-content-area {
+      display: flex;
+      position: relative;
+      background: var(--editor-bg);
+      min-height: 420px;
+    }
+
+    .editor-gutter {
+      width: 48px;
+      padding: 18px 0;
+      background: var(--editor-gutter);
+      color: #475569;
+      font-family: var(--font-mono);
+      font-size: 0.92rem;
+      line-height: 1.7;
+      text-align: right;
+      user-select: none;
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .editor-gutter span {
+      padding-right: 12px;
+      display: block;
+      height: 1.7em;
+    }
+
+    .editor-textarea {
+      flex: 1;
+      padding: 18px 16px;
+      background: transparent;
+      color: #f1f5f9;
+      border: none;
+      outline: none;
+      resize: vertical;
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      line-height: 1.7;
+      white-space: pre;
+      overflow-x: auto;
+      tab-size: 4;
+      min-height: 420px;
+    }
+
+    .editor-textarea::selection {
+      background: rgba(245, 200, 66, 0.3);
+    }
+
+    /* Apply Action Area & Status */
+    .apply-action-area {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .action-button-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn-apply-code {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 15px 24px;
+      font-size: 1.05rem;
+      font-weight: 800;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold-primary) 50%, var(--gold-dark) 100%);
+      color: #091224;
+      box-shadow: 0 8px 24px rgba(245, 200, 66, 0.28);
+      transition: all 0.25s ease;
+      letter-spacing: -0.3px;
+    }
+
+    .btn-apply-code:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      filter: grayscale(40%);
+      box-shadow: none;
+    }
+
+    .btn-apply-code:not(:disabled):hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(245, 200, 66, 0.45);
+      background: linear-gradient(135deg, #fff0a8 0%, #f5c842 60%, #deb024 100%);
+    }
+
+    .btn-apply-code:active {
+      transform: translateY(0);
+    }
+
+    .btn-reset-secondary {
+      padding: 15px 18px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      border-radius: 12px;
+      background: var(--bg-card);
+      color: var(--text-sub);
+      border: 1px solid var(--border-soft);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      white-space: nowrap;
+    }
+
+    .btn-reset-secondary:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-color);
+      color: var(--gold-light);
+    }
+
+    .btn-colab-download-main {
+      padding: 15px 20px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      border-radius: 12px;
+      background: rgba(245, 200, 66, 0.12);
+      color: var(--gold-light);
+      border: 1px solid rgba(245, 200, 66, 0.35);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-colab-download-main:hover {
+      background: rgba(245, 200, 66, 0.22);
+      border-color: var(--gold-primary);
+      color: #ffffff;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(245, 200, 66, 0.2);
+    }
+
+    /* Status Notice Box */
+    .pyodide-status {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      padding: 12px 16px;
+      border-radius: 10px;
+      line-height: 1.55;
+      transition: all 0.3s ease;
+      word-break: keep-all;
+    }
+
+    .pyodide-status.loading {
+      color: var(--gold-light);
+      background: rgba(245, 200, 66, 0.1);
+      border: 1px solid rgba(245, 200, 66, 0.25);
+    }
+
+    .pyodide-status.success {
+      color: #34d399;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+
+    .pyodide-status.error {
+      color: #f87171;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+
+    .pyodide-status.warning {
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+    }
+
+    .status-icon {
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .status-body {
+      flex: 1;
+    }
+
+    .status-spinner {
+      display: inline-block;
+      animation: pulse 1.4s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.5;
+        transform: scale(0.92);
+      }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 960px) {
+      .lab-container {
+        grid-template-columns: 1fr;
+        padding: 16px;
+        gap: 20px;
+      }
+
+      .panel {
+        padding: 18px;
+      }
+
+      .editor-content-area,
+      .editor-textarea {
+        min-height: 280px;
+      }
+
+      .action-button-row {
+        flex-direction: column;
+      }
+
+      .btn-apply-code,
+      .btn-reset-secondary,
+      .btn-colab-download-main {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Top Title Banner -->
+  <header class="lab-top-banner">
+    <div class="banner-inner">
+      <div class="banner-title-wrap">
+        <span class="banner-badge">LABORATORY</span>
+        <h1 class="banner-title">스킬투머니 실습실 <span class="gold-text">· 5장</span></h1>
+      </div>
+      <a href="/" class="banner-link">← 메인 페이지로 돌아가기</a>
+    </div>
+  </header>
+
+  <!-- Main 2-Column Section -->
+  <main class="lab-container">
+
+    <!-- Left Column: Course Cards Preview -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">
+          <span>📋</span> 원데이 강좌 목록
+        </h2>
+        <div class="panel-header-actions">
+          <button type="button" id="btn-refresh-list" class="btn-refresh-list">
+            <span>🔄 목록 새로 고침</span>
+          </button>
+          <span class="panel-tag">실시간 카드 목록</span>
+        </div>
+      </div>
+
+      <!-- "예약 가능한 강좌만 보기" 체크 상자 (파이썬 only_open에 따라 표시되며 직접 누를 수는 없음) -->
+      <div class="filter-box-area">
+        <label class="filter-checkbox-label">
+          <input type="checkbox" id="chk-only-open" disabled>
+          <span>예약 가능한 강좌만 보기</span>
+        </label>
+        <span class="filter-hint-badge">only_open 동기화 (읽기 전용)</span>
+      </div>
+
+      <!-- Course Cards Container -->
+      <div id="course-cards" class="course-cards-wrap">
+        <div style="color: var(--text-muted); padding: 30px; text-align: center;">
+          강좌 목록을 불러오는 중입니다...
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column: Python Code Editor -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">
+          <span>🐍</span> 이 웹앱을 움직이는 파이썬 코드
+        </h2>
+        <span class="panel-tag">Python 3 (Pyodide)</span>
+      </div>
+
+      <!-- Code Editor Box -->
+      <div class="code-editor-card">
+        <div class="editor-topbar">
+          <div class="editor-topbar-left">
+            <div class="editor-window-controls">
+              <span class="dot dot-red"></span>
+              <span class="dot dot-yellow"></span>
+              <span class="dot dot-green"></span>
+            </div>
+            <div class="editor-filename">
+              <span>📄</span> main.py
+            </div>
+          </div>
+          <!-- [처음 코드로] 버튼 (상단) -->
+          <button type="button" id="btn-reset-code-top" class="btn-reset-code">
+            <span>↺ 처음 코드로</span>
+          </button>
+        </div>
+
+        <div class="editor-content-area">
+          <div class="editor-gutter" id="line-numbers">
+            <!-- Line numbers generated via JS -->
+          </div>
+          <textarea id="code-input" class="editor-textarea" spellcheck="false">courses = [
+    {"id": 1, "name": "AI 자동화", "price": 35000, "seat": 8, "booked": 8, "tags": ["초보 환영", "2시간"]},
+    {"id": 2, "name": "숏폼 편집", "price": 45000, "seat": 6, "booked": 2, "tags": ["캡컷", "3시간"]},
+    {"id": 3, "name": "엑셀 실무", "price": 30000, "seat": 10, "booked": 7, "tags": ["함수 실습"]},
+    {"id": 4, "name": "스마트스토어", "price": 40000, "seat": 6, "booked": 5, "tags": ["상세페이지", "창업 준비"]}
+]
+only_open = True
+for i in range(0, len(courses), 1):
+    c = courses[i]
+    left = c["seat"] - c["booked"]
+    if only_open and left == 0:
+        continue
+    print(c["name"], c["price"], "원 / 남은 자리", left, "석", c["tags"])</textarea>
+        </div>
+      </div>
+
+      <!-- Apply Action Area -->
+      <div class="apply-action-area">
+        <div class="action-button-row">
+          <button type="button" id="btn-apply-code" class="btn-apply-code" disabled>
+            <span>▶ 웹앱에 적용하기</span>
+          </button>
+          <button type="button" id="btn-reset-code-bottom" class="btn-reset-secondary">
+            <span>↺ 처음 코드로</span>
+          </button>
+          <button type="button" id="btn-download-colab" class="btn-colab-download-main">
+            <span>⬇ 코랩 노트북으로 받기</span>
+          </button>
+        </div>
+
+        <!-- Status Notice Box -->
+        <div id="pyodide-status" class="pyodide-status loading">
+          <span id="status-icon" class="status-icon">
+            <span class="status-spinner">⏳</span>
+          </span>
+          <div id="status-body" class="status-body">파이썬을 준비하고 있습니다...</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // 초기 파이썬 코드 원본 상수 (5장 실습 코드)
+    const INITIAL_CODE = `courses = [
+    {"id": 1, "name": "AI 자동화", "price": 35000, "seat": 8, "booked": 8, "tags": ["초보 환영", "2시간"]},
+    {"id": 2, "name": "숏폼 편집", "price": 45000, "seat": 6, "booked": 2, "tags": ["캡컷", "3시간"]},
+    {"id": 3, "name": "엑셀 실무", "price": 30000, "seat": 10, "booked": 7, "tags": ["함수 실습"]},
+    {"id": 4, "name": "스마트스토어", "price": 40000, "seat": 6, "booked": 5, "tags": ["상세페이지", "창업 준비"]}
+]
+only_open = True
+for i in range(0, len(courses), 1):
+    c = courses[i]
+    left = c["seat"] - c["booked"]
+    if only_open and left == 0:
+        continue
+    print(c["name"], c["price"], "원 / 남은 자리", left, "석", c["tags"])`;
+
+    // HTML 이스케이프 유틸리티
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // 전역 변수 및 DOM 요소 참조
+    let pyodide = null;
+    const courseCardsContainer = document.getElementById('course-cards');
+    const chkOnlyOpen = document.getElementById('chk-only-open');
+    const codeInput = document.getElementById('code-input');
+    const lineNumbers = document.getElementById('line-numbers');
+    const btnApplyCode = document.getElementById('btn-apply-code');
+    const btnResetTop = document.getElementById('btn-reset-code-top');
+    const btnResetBottom = document.getElementById('btn-reset-code-bottom');
+    const btnRefreshList = document.getElementById('btn-refresh-list');
+    const btnDownloadColab = document.getElementById('btn-download-colab');
+    const statusBox = document.getElementById('pyodide-status');
+    const statusIcon = document.getElementById('status-icon');
+    const statusBody = document.getElementById('status-body');
+
+    // 상태 메시지 표시 헬퍼 함수
+    function showStatus(type, messageHtml, iconText) {
+      statusBox.className = `pyodide-status ${type}`;
+      statusIcon.innerHTML = iconText;
+      statusBody.innerHTML = messageHtml;
+    }
+
+    // 파이썬 에러 분석 및 쉬운 한국어 안내 생성
+    function parsePythonError(errStr) {
+      const lineMatch = errStr.match(/File\s+["'][^"']+["'],\s+line\s+(\d+)/i) ||
+        errStr.match(/line\s+(\d+)/i);
+      const lineNum = lineMatch ? `${lineMatch[1]}번째 줄 ` : "";
+
+      if (/SyntaxError/i.test(errStr)) {
+        return `${lineNum}구문 오류(SyntaxError): 따옴표, 괄호 짝이나 콜론(:) 등이 빠졌는지 확인하세요.`;
+      }
+      if (/IndentationError/i.test(errStr)) {
+        return `${lineNum}들여쓰기 오류(IndentationError): 줄 앞부분의 띄어쓰기(들여쓰기) 칸 수가 맞는지 확인하세요.`;
+      }
+      if (/NameError/i.test(errStr)) {
+        return `${lineNum}이름 오류(NameError): 변수 이름의 철자가 맞는지 확인하세요.`;
+      }
+      if (/KeyError/i.test(errStr)) {
+        return `${lineNum}키 오류(KeyError): 딕셔너리에 존재하지 않는 키 이름을 조회했습니다.`;
+      }
+      if (/TypeError/i.test(errStr)) {
+        return `${lineNum}자료형 오류(TypeError): 문자열과 숫자를 잘못 연산했는지 확인하세요.`;
+      }
+      if (/ValueError/i.test(errStr)) {
+        return `${lineNum}값 오류(ValueError): 잘못된 값이 들어갔는지 확인하세요.`;
+      }
+      if (/IndexError/i.test(errStr)) {
+        return `${lineNum}인덱스 오류(IndexError): 리스트 범위(개수)를 벗어난 위치를 참조했습니다.`;
+      }
+      return `${lineNum}실행 오류: 파이썬 코드 문법을 다시 한번 확인해 보세요.`;
+    }
+
+    // [⬇ 코랩 노트북으로 받기] 다운로드 실행 (ch05_lab.ipynb)
+    function downloadColabNotebook() {
+      const code = codeInput ? codeInput.value : "";
+      const notebookData = {
+        nbformat: 4,
+        nbformat_minor: 0,
+        metadata: {
+          colab: {
+            name: "ch05_lab.ipynb",
+            provenance: []
+          },
+          language_info: {
+            name: "python"
+          }
+        },
+        cells: [
+          {
+            cell_type: "markdown",
+            metadata: {},
+            source: [
+              "# 스킬투머니 5장 실습실 코드\n",
+              "5장 실습실에서 수정한 코드입니다."
+            ]
+          },
+          {
+            cell_type: "code",
+            execution_count: null,
+            metadata: {},
+            outputs: [],
+            source: code.split('\n').map((line, idx, arr) => idx < arr.length - 1 ? line + '\n' : line)
+          }
+        ]
+      };
+
+      const blob = new Blob([JSON.stringify(notebookData, null, 2)], {
+        type: "application/x-ipynb+json;charset=utf-8"
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = "ch05_lab.ipynb";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showStatus(
+        'success',
+        '✔ ch05_lab.ipynb를 내려받았습니다. 코랩 [파일] → [노트북 업로드]로 여세요.',
+        '✔'
+      );
+    }
+
+    // print() 출력 줄들을 카드 형태로 렌더링
+    // 요구사항:
+    // - print() 출력 한 줄이 강좌 카드 한 장이 되며 첫 부분 강좌 이름은 굵게 표시합니다.
+    function renderOutputCards(lines) {
+      if (!courseCardsContainer) return;
+      courseCardsContainer.innerHTML = '';
+
+      if (!lines || lines.length === 0) {
+        courseCardsContainer.innerHTML = `
+          <div style="color: var(--text-muted); padding: 30px; text-align: center;">
+            출력된 강좌가 없습니다. (예약 마감된 강좌가 제외되었거나 print 출력이 없습니다)
+          </div>
+        `;
+        return;
+      }
+
+      lines.forEach(rawLine => {
+        const line = String(rawLine).trim();
+        if (!line) return;
+
+        const card = document.createElement('div');
+        card.className = 'course-card-item';
+
+        // 1. 태그 목록 분리: 끝 부분에 ['태그1', '태그2'] 형태가 있는지 감지
+        let cleanText = line;
+        let tagsHtml = '';
+        const tagMatch = cleanText.match(/\[(.*?)\]$/);
+        if (tagMatch) {
+          const rawTagsStr = tagMatch[1];
+          cleanText = cleanText.substring(0, tagMatch.index).trim();
+          // 태그 문자열 파싱 (따옴표 제거)
+          const tags = rawTagsStr
+            .split(',')
+            .map(t => t.replace(/['"]/g, '').trim())
+            .filter(Boolean);
+          if (tags.length > 0) {
+            tagsHtml = `
+              <div class="card-tags-row">
+                ${tags.map(t => `<span class="tag-badge">#${escapeHtml(t)}</span>`).join('')}
+              </div>
+            `;
+          }
+        }
+
+        // 2. 마감 및 마감 임박 상태 배지 감지
+        let badgeHtml = '';
+        if (cleanText.includes('[마감 임박]')) {
+          badgeHtml = '<span class="badge-urgent">[마감 임박]</span>';
+          cleanText = cleanText.replace(/\[마감 임박\]/g, '').trim();
+        } else if (cleanText.includes('[마감]')) {
+          badgeHtml = '<span class="badge-closed">[마감]</span>';
+          cleanText = cleanText.replace(/\[마감\]/g, '').trim();
+        }
+
+        // 3. 첫 부분의 강좌 이름 분리 및 굵게 표시
+        // 예: "숏폼 편집 45000 원 / 남은 자리 4 석"
+        const match = cleanText.match(/^(.+?)\s+(\d[\d,]*\s*원.*)$/);
+        let courseName = '';
+        let courseMeta = '';
+
+        if (match) {
+          courseName = match[1];
+          courseMeta = match[2];
+        } else {
+          const parts = cleanText.split(' ');
+          courseName = parts[0] || '';
+          courseMeta = parts.slice(1).join(' ');
+        }
+
+        card.innerHTML = `
+          <div class="card-main-row">
+            <div class="card-left-info">
+              <strong class="card-course-name">${escapeHtml(courseName)}</strong>
+              <span class="card-meta-text">${escapeHtml(courseMeta)}</span>
+            </div>
+            <div>${badgeHtml}</div>
+          </div>
+          ${tagsHtml}
+        `;
+
+        courseCardsContainer.appendChild(card);
+      });
+    }
+
+    // 파이썬 코드 실행 함수
+    async function runPython() {
+      if (!pyodide) {
+        showStatus('loading', "파이썬 환경을 준비 중입니다. 잠시만 기다려 주세요...", "<span class='status-spinner'>⏳</span>");
+        return;
+      }
+
+      const rawCode = codeInput.value;
+
+      try {
+        pyodide.runPython(`_py_output = []`);
+        await pyodide.runPythonAsync(rawCode);
+
+        // only_open 변수 동기화
+        const hasOnlyOpen = pyodide.runPython("'only_open' in globals()");
+        if (hasOnlyOpen && chkOnlyOpen) {
+          const isOnlyOpen = Boolean(pyodide.globals.get('only_open'));
+          chkOnlyOpen.checked = isOnlyOpen;
+        }
+
+        const outputLines = pyodide.runPython("_py_output").toJs() || [];
+        renderOutputCards(outputLines);
+
+        showStatus('success', '✔ 파이썬 코드가 실행되어 5장 강좌 목록에 적용되었습니다.', '✔');
+      } catch (err) {
+        console.error("Python Error:", err);
+        const errMsg = parsePythonError(err.message || String(err));
+        showStatus('error', escapeHtml(errMsg), '❌');
+      }
+    }
+
+    // [처음 코드로] 리셋
+    async function resetToInitialCode() {
+      if (codeInput) {
+        codeInput.value = INITIAL_CODE;
+        updateLineNumbers();
+      }
+      await runPython();
+      showStatus('success', '✔ 처음 코드로 되돌렸습니다.', '↺');
+    }
+
+    // Pyodide 엔진 초기화
+    async function initPyodide() {
+      try {
+        showStatus('loading', "파이썬을 준비하고 있습니다...", "<span class='status-spinner'>⏳</span>");
+
+        pyodide = await loadPyodide({
+          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/"
+        });
+
+        // print() 가로채기
+        pyodide.runPython(`
+import builtins
+
+_py_output = []
+
+def _custom_print(*args, **kwargs):
+    sep = kwargs.get('sep', ' ')
+    text = sep.join(str(a) for a in args)
+    _py_output.append(text)
+
+builtins.print = _custom_print
+`);
+
+        btnApplyCode.disabled = false;
+
+        // 페이지 열면 초기 코드 자동 실행
+        await runPython();
+
+      } catch (err) {
+        console.error("Pyodide Load Failed:", err);
+        showStatus('error', "파이썬 엔진 로드 실패: 인터넷 연결 상태를 확인한 후 새로고침해 주세요.", "❌");
+      }
+    }
+
+    // 이벤트 리스너 등록
+    if (btnApplyCode) btnApplyCode.addEventListener('click', runPython);
+    if (btnRefreshList) btnRefreshList.addEventListener('click', runPython);
+    if (btnResetTop) btnResetTop.addEventListener('click', resetToInitialCode);
+    if (btnResetBottom) btnResetBottom.addEventListener('click', resetToInitialCode);
+    if (btnDownloadColab) btnDownloadColab.addEventListener('click', downloadColabNotebook);
+
+    // 에디터 줄 번호 자동 갱신
+    function updateLineNumbers() {
+      if (!codeInput || !lineNumbers) return;
+      const lines = codeInput.value.split('\n').length;
+      let numbersHtml = '';
+      for (let i = 1; i <= Math.max(lines, 6); i++) {
+        numbersHtml += `<span>${i}</span>`;
+      }
+      lineNumbers.innerHTML = numbersHtml;
+    }
+
+    if (codeInput && lineNumbers) {
+      updateLineNumbers();
+      codeInput.addEventListener('input', updateLineNumbers);
+      codeInput.addEventListener('scroll', function () {
+        lineNumbers.scrollTop = codeInput.scrollTop;
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', initPyodide);
+  </script>
+</body>
+
+</html>
